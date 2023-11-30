@@ -4,7 +4,7 @@
     This will reset Azure MFA (stong authentication) for single or bulk users from txt file.
  
 .NOTES
-    Name: Get-PIMRoleAssignment
+    Name: Reset-MFA
     Author: Lex Foronda
     Version: 1.0
     DateCreated: 2023.11.29
