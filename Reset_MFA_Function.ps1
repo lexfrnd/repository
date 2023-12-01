@@ -1,4 +1,4 @@
-﻿Function Reset-MFA {
+Function Reset-MFA {
 <#
 .SYNOPSIS
     This will reset Azure MFA (stong authentication) for single or bulk users from txt file.
@@ -102,7 +102,7 @@
 
                     #Reset of MFA for a multiple user
                     $UPN = $UPN.trim()
-                    #Set-MsolUser -UserPrincipalName $User -StrongAuthenticationMethods @()
+                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @()
                     Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UPN"
 
                 } 
