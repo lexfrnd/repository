@@ -30,42 +30,6 @@ $DC_FQDN = hostname
 Write-Host " " 
 Write-Host -ForegroundColor Yellow "===================================================================================================================" 
 Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking all required ports for $DC_FQDN"
- 
-$Ports = @( 
-        '3389', 
-        '445', 
-        '88', 
-        '135',    
-        '464',  
-        '389',  
-        '3268', 
-        '636', 
-        '3269'
-        )
- 
-$Ports | foreach {
- 
-    $Connection_Result = Test-NetConnection -ComputerName $DC_FQDN -InformationLevel "Detailed" -port $_ | Select ComputerName, RemoteAddress, RemotePort, NameResolutionResults, InterfaceAlias, SourceAddress, TcpTestSucceeded
- 
-    [int]$i= "0"
-    If ($Connection_Result.TcpTestSucceeded -ne "True")
-    {
-        $RemotePort = $Connection_Result.RemotePort
-        Write-Host -ForegroundColor Red "Please check $RemotePort"
-        $i++
-    }
- 
-}
- 
-If ($i -eq "0")  
-{ 
-    Write-Host -ForegroundColor Green "All required ports have successful connection."  
-}
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "===================================================================================================================" 
-Write-Host " " 
 Write-Host -ForegroundColor Cyan "Checking all required features for $DC_FQDN"
  
 $Features = @( 
@@ -101,7 +65,7 @@ $Features = @(
  
 $Features | foreach {
  
-    $Query_Feature = Get-WindowsFeature -Name $_
+    $Query_Feature = Get-WindowsFeature -Name $DC_FQDN
  
     [int]$i= "0"
     If ($Query_Feature.Installed -ne "True")
@@ -237,7 +201,7 @@ Function Get-DCServices($DC_FQDN) {
         $stoppedServicesNames = $stoppedServices.Name -join ', ' 
         $servicesReason = "$stoppedServicesNames not running" 
     }
-    #elseif (
+    
     else{ 
         $servicesResults = "Success" 
     }
