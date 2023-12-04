@@ -7,10 +7,9 @@
     NETLOGON and SYSVOL share
     C: drive free space
     Required services
-    Replication Error
-    DCDIAG
-    LDAP
- 
+    LDAP/s
+    Replication
+    
 .PRE-REQUISITE
     Working over PSSession on a Domain Controller 
 #>
@@ -69,204 +68,6 @@ If ($i -eq "0")
 { 
     Write-Host -ForegroundColor Green "All required features are installed."  
 }
-
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "=================================================================="
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking Sharing properties for SYSVOL and NETLOGON for $DC_FQDN"
-
-$Check = Net Share
-$CheckSysvol = $Check |Select-String "SYSVOL" 
-$CheckNetlogon = $Check |Select-String "NETLOGON"
-[int]$i= "0"
-
-If ($CheckSysvol -eq $null -and $CheckNetlogon -ne $null) { 
-    Write-Host -ForegroundColor Yellow "SYSVOL is not shared on $Hostname, Please check." 
-    $i++
-}
-
-elseif ($CheckSysvol -ne $null -and $CheckNetlogon -eq $null) { 
-    Write-Host -ForegroundColor Yellow "NETLOGON is not shared on $Hostname, Please check." 
-    $i++ 
-}
-
-elseif ($i -gt 1) { 
-    Write-Host -ForegroundColor Yellow "SYSVOL and NETLOGON are not shared on $Hostname, Please check." 
-    $i++ 
-}
-
-elseif ($i -eq 0)  
-{ 
-    Write-Host -ForegroundColor Green "SYSVOL and NETLOGON for all servers are shared."  
-}
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "=================================================================="
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking C Drive free space for $DC_FQDN"
-
-$Drive_C_Percent = Get-PSDrive C | foreach { $_.free/($_.used + $_.free) } | foreach ToString P
-$Drive_C_Percent = $Drive_C_Percent.Substring(0,2)
-
-If ($Drive_C_Percent -gt "20") {
-        
-    Write-Host -ForegroundColor Green "C drive is Healthy with free space is $Drive_C_Percent percent."
-    
-}
-    
-ElseIf ($Drive_C_Percent -lt "20") {
-        
-    Write-Host -ForegroundColor Red "Please check C Drive it is below 20% capacity"
-    
-}
-
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "=================================================================="
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Running Diagnostics for $DC_FQDN"
-
-function Get-DCDiagResults($DC_FQDN) { 
-    
-    $DcdiagOutput = Dcdiag.exe /skip:services
-
-    if ($DcdiagOutput) {
-     
-        $Results = New-Object PSCustomObject 
-        $DcdiagOutput | ForEach-Object { 
-
-            switch -Regex ($_) { 
-                "Starting" { 
-
-                    $TestName = ($_ -replace ".*Starting test: ").Trim() 
-                
-                } 
-                
-                "passed test|failed test" { 
-                    
-                    $TestStatus = if ($_ -match "passed test") { "Passed" } else { "Failed" } 
-                
-                }
-            
-            } 
-            
-            if ($null -ne $TestName -and $null -ne $TestStatus) { 
-                
-                $Results | Add-Member -Name $TestName.Trim() -Value $TestStatus -Type NoteProperty -Force 
-                $TestName = $null 
-                $TestStatus = $null 
-            
-            }
-        
-        }
-    
-    }
-    
-    return $Results 
-}
- 
-Get-DCDiagResults
-
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "=================================================================="
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking Replication errors for $DC_FQDN"
-function Get-ReplicationData {
-
-    $repPartnerData = Get-ADReplicationPartnerMetadata -Target $DC_FQDN
-    $replResult = @{}
-    # Get the replication partner 
-    $replResult.repPartner = ($RepPartnerData.Partner -split ',')[1] -replace 'CN=', '';
-    # Last attempt
-
-    try { 
-        
-        $replResult.lastRepAttempt = @() 
-        $replLastRepAttempt = $repPartnerData.LastReplicationAttempt 
-        $replFrequency = (Get-ADReplicationSiteLink -Filter *).ReplicationFrequencyInMinutes 
-        
-        if (((Get-Date) - $replLastRepAttempt).Minutes -gt $replFrequency) { 
-            
-            $replResult.lastRepAttempt += "Warning" 
-            $replResult.lastRepAttempt += "More then $replFrequency minutes ago - $($replLastRepAttempt.ToString('yyyy-MM-dd HH:mm'))" 
-        
-        }
-        
-        else{ 
-        
-            $replResult.lastRepAttempt += "Success - $($replLastRepAttempt.ToString('yyyy-MM-dd HH:mm'))" 
-        
-        }
-
-        # Last successfull replication 
-        $replResult.lastRepSuccess = @() 
-        $replLastRepSuccess = $repPartnerData.LastReplicationSuccess 
-        if (((Get-Date) - $replLastRepSuccess).Minutes -gt $replFrequency) {
-
-            $replResult.lastRepSuccess += "Warning" 
-            $replResult.lastRepSuccess += "More then $replFrequency minutes ago - $($replLastRepSuccess.ToString('yyyy-MM-dd HH:mm'))" 
-        
-        }
-        
-        else { 
-            
-            $replResult.lastRepSuccess += "Success - $($replLastRepSuccess.ToString('yyyy-MM-dd HH:mm'))" 
-        
-        }
-        
-        # Get failure count 
-        $replResult.failureCount = @() 
-        $replFailureCount = (Get-ADReplicationFailure -Target $computername).FailureCount 
-        
-        if ($null -eq $replFailureCount) {
-          
-            $replResult.failureCount += "Success" 
-        
-        }
-        
-        else{ 
-            
-            $replResult.failureCount += "Failed" 
-            $replResult.failureCount += "$replFailureCount failed attempts" 
-        
-        }  
-        
-        # Get replication results 
-        $replDelta = (Get-Date) - $replLastRepAttempt
-        # Check if the delta is greater than 180 minutes (3 hours) 
-        
-        if ($replDelta.TotalMinutes -gt $replFrequency) { 
-            
-            $replResult.delta += "Failed" 
-            $replResult.delta += "Delta is more then 180 minutes - $($replDelta.Minutes)" 
-        
-        }
-        
-        else { 
-            
-            $replResult.delta += "Success - $($replDelta.Minutes) minutes" 
-        
-        }
-         
-    }
-     
-    catch [exception]{ 
-        
-        $replResult.LastRepAttempt += "Failed" 
-        $replResult.LastRepAttempt += "Unable to retrieve replication data" 
-        $replResult.LastRepSuccess += "Failed" 
-        $replResult.LastRepSuccess += "Unable to retrieve replication data" 
-        $replResult.FailureCount += "Failed" 
-        $replResult.FailureCount += "Unable to retrieve replication data" 
-        $replResult.Delta += "Failed" 
-        $replResult.Delta += "Unable to retrieve replication data" 
-    
-    }
-    
-    return $replResult 
-}
-
-Get-ReplicationData
  
 Write-Host " " 
 Write-Host -ForegroundColor Yellow "=================================================================="
@@ -508,5 +309,12 @@ If ($i -eq "0") {
     Write-Host -ForegroundColor Green "All required services are running."  
 
 }
+
+Write-Host " " 
+Write-Host -ForegroundColor Yellow "=================================================================="
+Write-Host " " 
+Write-Host -ForegroundColor Cyan "Checking for replication failures"
+
+Repadmin /replsum
 
 Stop-Transcript
