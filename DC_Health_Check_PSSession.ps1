@@ -4,23 +4,16 @@
  
 .DESCRIPTION 
     This script will check the following:
-    Test TCP ports
     Installed Features
-    Services
     NETLOGON and SYSVOL share
-    NTDS Size
     C: drive free space
-    Required running services
-    DCDIAG
+    Required services
     Replication Error
-    Time Error
+    DCDIAG
     LDAP
- 
+
 .PRE-REQUISITE
-    Working over PSSession on a Domain Controller
- 
-.CHANGELOG
-    v1.0  
+    Working over PSSession on a Domain Controller 
  
 #>
  
@@ -115,31 +108,7 @@ elseif ($i -eq "0")
 { 
     Write-Host -ForegroundColor Green "SYSVOL and NETLOGON for all servers are shared."  
 }
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "===================================================================================================================" 
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking for NTDS Size for $DC_FQDN"
- 
-# Get Active Directory DB Size 
-Function Get-ADDatabaseSize() { 
-    try { 
-        $DSADbFile = Get-ItemProperty -Path HKLM:\System\CurrentControlSet\Services\NTDS\Parameters | Select 'DSA Database File' 
-        $DSADbFileSize = (Get-ItemProperty -Path $DSADbFile.'DSA Database File').Length /1MB 
-    } 
-    catch [exception] { 
-        $DSADbFileSizeResult = "Failed" 
-        $DSADbFileSizeReason = 'Unable to retrieve' 
-    }
- 
-    $DSADbFileSizeResult = [Math]::Round($DSADbFileSize,2,[MidPointRounding]::AwayFromZero)   
- 
-    return $DSADbFileSizeResult, $DSADbFileSizeReason 
-}
- 
-$DBSize_in_MB = Get-ADDatabaseSize
-Write-Host -ForegroundColor Green "Current NTDS size is $DBSize_in_MB MB"
- 
+
 Write-Host " " 
 Write-Host -ForegroundColor Yellow "===================================================================================================================" 
 Write-Host " " 
@@ -169,48 +138,7 @@ $Drive_Status | foreach {
  
     }
 }
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "===================================================================================================================" 
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking for required running services for $DC_FQDN"
- 
-# Check if the NTDS, ADWS, DNS, DNScache, KDC, Netlogon and W32Time services are running 
-Function Get-DCServices($DC_FQDN) {
- 
-    $services = @( 
-        'EventSystem', 
-        'RpcSs', 
-        'IsmServ', 
-        'ntds',  
-        'adws',  
-        'dns',  
-        'dnscache',  
-        'kdc', 
-        'LanmanServer', 
-        'LanmanWorkstation' 
-        'SamSs' 
-        'w32time',  
-        'netlogon'     
-    )
- 
-    $stoppedServices = Get-Service -Name $services -ErrorAction Ignore | where {$_.Status -eq 'Stopped'}
- 
-    if ($stoppedServices.length -gt 0) { 
-        $servicesResults = "Failed" 
-        $stoppedServicesNames = $stoppedServices.Name -join ', ' 
-        $servicesReason = "$stoppedServicesNames not running" 
-    }
-    
-    else{ 
-        $servicesResults = "Success" 
-    }
- 
-    return $servicesResults,$servicesReason 
-}
- 
-Get-DCServices
- 
+
 Write-Host " " 
 Write-Host -ForegroundColor Yellow "===================================================================================================================" 
 Write-Host " " 
@@ -228,19 +156,18 @@ function Get-DCDiagResults($DC_FQDN) {
                 } 
                 "passed test|failed test" { 
                     $TestStatus = if ($_ -match "passed test") { "Passed" } else { "Failed" } 
-                } 
+                }
             } 
             if ($null -ne $TestName -and $null -ne $TestStatus) { 
                 $Results | Add-Member -Name $TestName.Trim() -Value $TestStatus -Type NoteProperty -Force 
                 $TestName = $null 
                 $TestStatus = $null 
-            } 
-        } 
-    } 
+            }
+        }
+    }
     return $Results 
 }
- 
- 
+
 Get-DCDiagResults
  
 Write-Host " " 
@@ -314,31 +241,7 @@ function Get-ReplicationData {
 }
  
 Get-ReplicationData
- 
-repadmin /replsum
- 
-Write-Host " " 
-Write-Host -ForegroundColor Yellow "===================================================================================================================" 
-Write-Host " " 
-Write-Host -ForegroundColor Cyan "Checking time error for $DC_FQDN"
- 
-function Get-TimeDifference { 
-    # credits: https://stackoverflow.com/a/63050189 
-    $currentTime, $timeDifference = (& w32tm /stripchart /computer:$DC_FQDN /samples:1 /dataonly)[-1].Trim("s") -split ',\s*' 
-    $diff = [double]$timeDifference
- 
-    if ($diff -ge 1) { 
-        $timeResult = "Failed" 
-        $timeReason = "Offset greater then 1" 
-    }else{ 
-        $diffRounded = [Math]::Round($diff,4,[MidPointRounding]::AwayFromZero) 
-        $timeResult = "Success - $diffRounded" 
-    } 
-    return $timeResult, $timeReason 
-}
- 
-Get-TimeDifference
- 
+
 Write-Host " " 
 Write-Host -ForegroundColor Yellow "===================================================================================================================" 
 Write-Host " " 
