@@ -16,7 +16,7 @@ Function Reset-MFA {
     Reset-MFA -BulkWork -InputTextFile C:\temp\Users_UPN.txt -Outputfile C:\temp\Reset_MFA_Log.txt
     
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     Param
     (
         # UPN variable to reset azure mfa
@@ -36,7 +36,7 @@ Function Reset-MFA {
         [switch]
         $BulkWork,
 
-        # Log file
+        # Input file
         [Parameter(ParameterSetName='Bulk')]
         [Parameter(ParameterSetName='Input')]
         [Alias('Input')]
@@ -74,12 +74,12 @@ Function Reset-MFA {
     
     PROCESS {
 
-        If ($UserPrincipalName) {
+        If ($PSCmdlet.ShouldProcess($UserPrincipalName)) {
 
             Try {
 
                 #Reset of MFA for a specific user
-                #Set-MsolUser -UserPrincipalName $UserPrincipalName -StrongAuthenticationMethods @()
+                Set-MsolUser -UserPrincipalName $UserPrincipalName -StrongAuthenticationMethods @()
                 Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UserPrincipalName"
 
             } 
@@ -92,7 +92,7 @@ Function Reset-MFA {
 
         }
 
-        If ($PSBoundParameters.ContainsKey('BulkWork')) {
+        If (($PSCmdlet.ShouldProcess('$BulkWork')) -and ($PSBoundParameters.ContainsKey('BulkWork'))) {
             
             #Query contents of he input txt file
             $UPNS = Get-Content "C:\temp\Users_UPN.txt"
