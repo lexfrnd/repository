@@ -92,7 +92,7 @@ Function Reset-MFA {
 
         }
 
-        If (($PSCmdlet.ShouldProcess('$BulkWork')) -and ($PSBoundParameters.ContainsKey('BulkWork'))) {
+        If ($PSBoundParameters.ContainsKey("BulkWork") -and ($PSCmdlet.ShouldProcess($BulkWork))) {
             
             #Query contents of he input txt file
             $UPNS = Get-Content "C:\temp\Users_UPN.txt"
