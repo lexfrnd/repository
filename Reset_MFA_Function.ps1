@@ -56,69 +56,43 @@ Function Reset-MFA {
         )]
         [string]
         $Outputfile
-    
     )
     
     BEGIN {     
-        
         #Check msolservice connection
         if (-not (Get-MsolDomain -ErrorAction SilentlyContinue)) {
-
             Write-Host -ForegroundColor Yellow "You're not connected to MSolService. Please sing in to your T1 - privilege account."
-
             Connect-MsolService
-
         }
-
     }
     
     PROCESS {
-
         If ($PSCmdlet.ShouldProcess($UserPrincipalName)) {
-
             Try {
-
                 #Reset of MFA for a specific user
-                Set-MsolUser -UserPrincipalName $UserPrincipalName -StrongAuthenticationMethods @()
+                Set-MsolUser -UserPrincipalName $UserPrincipalName -StrongAuthenticationMethods @() -ErrorAction Stop
                 Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UserPrincipalName"
-
-            } 
-        
-            Catch {
-            
-                Write-Error $_.Exception.Message
-
             }
-
+            Catch {
+                Write-Error $_.Exception.Message
+            }
         }
-
+        
         If ($PSBoundParameters.ContainsKey("BulkWork") -and ($PSCmdlet.ShouldProcess($BulkWork))) {
-            
             #Query contents of he input txt file
             $UPNS = Get-Content "C:\temp\Users_UPN.txt"
             Foreach ($UPN in $UPNS) {
-
                 Try {
-
                     #Reset of MFA for a multiple user
                     $UPN = $UPN.trim()
-                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @()
+                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Stop
                     Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UPN"
-
-                } 
-        
-                Catch {
-            
-                    Write-Error $_.Exception.Message
-
                 }
-
+                Catch {
+                    Write-Error $_.Exception.Message
+                }
             }
-
         }
-
     }
-
     END {}
-
 }
