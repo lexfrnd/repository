@@ -10,10 +10,10 @@ Function Reset-MFA {
     DateCreated: 2023.11.29
  
 .EXAMPLE
-    Reset-MFA -UserPrincipalName JuanDelaCruz@domain.com -Outputfile C:\temp\Reset_MFA_Log.txt
+    Reset-MFA -UserPrincipalName JuanDelaCruz@domain.com
  
 .EXAMPLE
-    Reset-MFA -BulkWork -Inputfile C:\temp\Users_UPN.txt -Outputfile C:\temp\Reset_MFA_Log.txt
+    Reset-MFA -BulkWork -Inputfile C:\temp\Users_UPN.txt
     
 #>
     [CmdletBinding(SupportsShouldProcess)]
