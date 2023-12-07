@@ -32,11 +32,18 @@ Function Reset-MFA {
         [Parameter(ParameterSetName='Bulk')]
         #// ValidationScript for PS version 5.1
         [ValidateScript({
-            If (Test-Path C:\temp\Users_UPN.txt -PathType Leaf){
+            If (Test-Path C:\temp\Users_UPN.txt -PathType Leaf) {
                 $true
             } Else {
                 throw "Users_UPN.txt is not existing in C:\temp."
-            }    
+            }
+            
+            If (Get-Content "C:\temp\Users_UPN.txt" -ReadCount 1) {
+                $true
+            } Else {
+                throw "Users_UPN.txt is empty."
+            }
+
         }
         )]
         <#// ValidationScript for PS version 6 
@@ -45,10 +52,7 @@ Function Reset-MFA {
         },
         ErrorMessage = "Users_UPN.txt is not existing in C:\temp."
         )]#> 
-        [string] $Inputfile = 'C:\temp\Users_UPN.txt',
-
-        # Log file
-        [string] $Outputfile = 'C:\temp\Reset_MFA_Log.txt'
+        [string] $Inputfile = 'C:\temp\Users_UPN.txt'
     )
     
     BEGIN {     
@@ -71,7 +75,7 @@ Function Reset-MFA {
             }
         }
         
-        If ($PSBoundParameters.ContainsKey("BulkWork") -and ($PSCmdlet.ShouldProcess($BulkWork))) {
+        If ($PSBoundParameters.ContainsKey("Bulk") -and ($PSCmdlet.ShouldProcess($BulkWork))) {
             #Query contents of he input txt file
             $UPNS = Get-Content "C:\temp\Users_UPN.txt"
             Foreach ($UPN in $UPNS) {
