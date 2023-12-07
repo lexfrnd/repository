@@ -1,0 +1,23 @@
+Function Check-RemoteServer {
+<#
+.SYNOPSIS
+    This will check if a server is rechable or not.
+ 
+.NOTES
+    Name: Check-RemoteServer
+    Author: Lex Foronda
+    Version: 1.0
+    DateCreated: 2023.12.07
+ 
+.EXAMPLE
+    Check-RemoteServe -Server google.com
+ 
+#>
+
+   param (
+      [ValidateScript({Test-Connection -ComputerName $_ -Count 2 -
+      Quiet}, ErrorMessage = "Remote Server unreachable")]
+      [string]$Server
+   )
+   Write-Output "$Server is reachable"
+}
