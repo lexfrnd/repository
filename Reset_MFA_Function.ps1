@@ -13,49 +13,38 @@ Function Reset-MFA {
     Reset-MFA -UserPrincipalName JuanDelaCruz@domain.com -Outputfile C:\temp\Reset_MFA_Log.txt
  
 .EXAMPLE
-    Reset-MFA -BulkWork -InputTextFile C:\temp\Users_UPN.txt -Outputfile C:\temp\Reset_MFA_Log.txt
+    Reset-MFA -BulkWork -Inputfile C:\temp\Users_UPN.txt -Outputfile C:\temp\Reset_MFA_Log.txt
     
 #>
     [CmdletBinding(SupportsShouldProcess)]
     Param
     (
         # UPN variable to reset azure mfa
-        [Parameter(
-            Mandatory = $false,
-            ValueFromPipeline = $true,
-            ValueFromPipelineByPropertyName = $true,
-            ParameterSetName='User'
-            )]
+        [Parameter(ParameterSetName='User')]
         [string] $UserPrincipalName,
 
         # TXT file requirement
         [Parameter(
             Mandatory = $false,
             ParameterSetName='Bulk'
-            )]
-        [switch]
-        $BulkWork,
+        )]
+        [switch] $BulkWork,
 
         # Input file
-        [Parameter(ParameterSetName='Bulk')]
         [Parameter(ParameterSetName='Input')]
-        [Alias('Input')]
-        [ValidateSet(
-            'C:\temp\Users_UPN.txt'
+        [Parameter(ParameterSetName='Bulk')]
+        [ValidateScript({
+            If (Test-Path C:\temp\Users_UPN.txt -PathType Leaf){
+                $true
+            } Else {
+                throw "Users_UPN.txt is not existing in C:\temp."
+            }    
+        }
         )]
-        [string]
-        $Inputfile,
+        [string] $Inputfile = 'C:\temp\Users_UPN.txt',
 
         # Log file
-        [Parameter(ParameterSetName='User')]
-        [Parameter(ParameterSetName='Bulk')]
-        [Parameter(ParameterSetName='Output')]
-        [Alias('Output')]
-        [ValidateSet(
-            'C:\temp\Reset_MFA_Log.txt'
-        )]
-        [string]
-        $Outputfile
+        [string] $Outputfile = 'C:\temp\Reset_MFA_Log.txt'
     )
     
     BEGIN {     
