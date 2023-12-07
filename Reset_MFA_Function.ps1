@@ -24,15 +24,13 @@ Function Reset-MFA {
         [string] $UserPrincipalName,
 
         # TXT file requirement
-        [Parameter(
-            Mandatory = $false,
-            ParameterSetName='Bulk'
-        )]
+        [Parameter(ParameterSetName='Bulk')]
         [switch] $BulkWork,
 
         # Input file
         [Parameter(ParameterSetName='Input')]
         [Parameter(ParameterSetName='Bulk')]
+        #// ValidationScript for PS version 5.1
         [ValidateScript({
             If (Test-Path C:\temp\Users_UPN.txt -PathType Leaf){
                 $true
@@ -41,6 +39,12 @@ Function Reset-MFA {
             }    
         }
         )]
+        <#// ValidationScript for PS version 6 
+        [ValidateScript({
+            Test-Path C:\temp\Users_UPN.txt -PathType Leaf            
+        },
+        ErrorMessage = "Users_UPN.txt is not existing in C:\temp."
+        )]#> 
         [string] $Inputfile = 'C:\temp\Users_UPN.txt',
 
         # Log file
