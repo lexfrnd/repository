@@ -55,7 +55,12 @@ Function Reset-MFA {
         [string] $Inputfile = 'C:\temp\Users_UPN.txt'
     )
     
-    BEGIN {     
+    BEGIN { 
+        #Check msolservice module
+        if (-not (Get-Module -Name MSOnline -ErrorAction Stop)) {
+            Write-Host -ForegroundColor Red "Please install MSOnline module."
+        }
+
         #Check msolservice connection
         if (-not (Get-MsolDomain -ErrorAction SilentlyContinue)) {
             Write-Host -ForegroundColor Yellow "You're not connected to MSolService. Please sing in to your T1 - privilege account."
@@ -67,6 +72,11 @@ Function Reset-MFA {
         If ($PSCmdlet.ShouldProcess($UserPrincipalName)) {
             Try {
                 #Reset of MFA for a specific user
+                $UPN = $UPN.trim()
+                If ($UPN.Split("@")[1] -notcontains "pg.com") {
+                    $UPN_Short = $UPN.Split("@")[0]
+                    $UPN = $UPN_Short + "_" + $UPN.Split("@")[1] + "#EXT#@pgone.onmicrosoft.com"
+                }
                 Set-MsolUser -UserPrincipalName $UserPrincipalName -StrongAuthenticationMethods @() -ErrorAction Stop
                 Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UserPrincipalName"
             }
@@ -82,6 +92,10 @@ Function Reset-MFA {
                 Try {
                     #Reset of MFA for a multiple user
                     $UPN = $UPN.trim()
+                    If ($UPN.Split("@")[1] -notcontains "pg.com") {
+                        $UPN_Short = $UPN.Split("@")[0]
+                        $UPN = $UPN_Short + "_" + $UPN.Split("@")[1] + "#EXT#@pgone.onmicrosoft.com"
+                    }
                     Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Stop
                     Write-Host -ForegroundColor Green "Successully reset Azure MFA for $UPN"
                 }
