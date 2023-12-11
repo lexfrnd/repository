@@ -13,7 +13,7 @@ Function Reset-MFA {
     Reset-MFA -UserPrincipalName JuanDelaCruz@domain.com
  
 .EXAMPLE
-    Reset-MFA -BulkWork -Inputfile C:\temp\Users_UPN.txt
+    Reset-MFA -BulkWork -Inputfile
     
 #>
     [CmdletBinding(SupportsShouldProcess)]
