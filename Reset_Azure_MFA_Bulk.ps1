@@ -13,7 +13,6 @@
 #    Import-ModuleAzureAD
 #    Connect-AzureAD -TenantId #<your_tenantID> Get-Module *AzureAD*
 #    MSOnline Module - Install-Module MSOnline
-#
 
 #Check Execution policy
 $ExecutionPolicy = Get-ExecutionPolicy -ErrorAction SilentlyContinue
