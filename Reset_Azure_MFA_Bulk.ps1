@@ -24,7 +24,7 @@ if ($ExecutionPolicy -ne "RemoteSigned") {
 #Uninstall AzureAD Module. This will conflict with AzureADPreview
 $AzureAD_Status = Get-Module -Name AzureAD
 If($AzureAD_Status.Name -eq $null) { Write-Host -f Green "AzureAD module is not installed" }
-Else { Uninstall-Module -Name AzureAD -Whatif }
+Else { Uninstall-Module -Name AzureAD }
 
 #Query and install AzureADPreview module
 $AzureADPreview_Status = Get-Module -Name AzureADPreview
@@ -41,6 +41,14 @@ if (-not (Get-MsolDomain -ErrorAction SilentlyContinue)) {
     Write-Host -ForegroundColor Yellow "You're not connected to MSolService. Please sing in to your T1 - privilege account."
     Connect-MsolService
 }
+
+#AzureAD connection verification
+If (-not ($AzureConnection.Account)) {  
+    $AzureConnection = Connect-AzureAD -ErrorAction stop
+    $AzureConnection_UPN = ($AzureConnection.Account).Id
+    Write-Host -f Green "You're connected to AzureAD using $AzureConnection_UPN"
+}
+
 
 Function Get-PIMRoleAssignment {
 <#
@@ -349,17 +357,9 @@ Function Add-PIMRoleAssignment {
  
 }
 
-#AzureAD connection verification
-If($AzureConnection.Account -eq $null){  
-    $AzureConnection = Connect-AzureAD #-TenantId $TenantId 
-    $AzureConnection_UPN = ($AzureConnection.Account).Id
-    Write-Host -f Green "You're logged in using $AzureConnection_UPN"
-}
-
-Else { Write-Host -f Green "You're logged in using $AzureConnection_UPN" }
 
 #Query current Azure AD role assignment
-$PIMRoleAssignment = Get-PIMRoleAssignment -UserPrincipalName $AzureConnection_UPN
+$PIMRoleAssignment = Get-PIMRoleAssignment -UserPrincipalName eh0251.t1@pg.com #$AzureConnection_UPN
 If ($PIMRoleAssignment -ne $null) {
     $PIMRoleAssignment | % {
 	    $UserDisplayName = $_ |% {$_.UserDisplayName}
@@ -369,7 +369,7 @@ If ($PIMRoleAssignment -ne $null) {
         $MemberType = $_ |% {$_.MemberType}
         
         #Condition if Auth Admin is assigned as eligible (L2 Access)
-        If ($AzureADRole -eq 'Authentication Administrator' -and $PIMAssignment -eq 'Eligible') {
+        If ((($AzureADRole -eq 'Authentication Administrator') -or ($AzureADRole -eq 'Global Administrator')) -and $PIMAssignment -eq 'Eligible') {
             Write-Host ""
             Write-Host -f Cyan "Input SNOW INC Ticket number: " -NoNewline
             $SNOW_Ticket = Read-Host
@@ -377,7 +377,7 @@ If ($PIMRoleAssignment -ne $null) {
             $Reason = Read-Host
 
             #Activate Auth Admin role
-            Add-PIMRoleAssignment -UserPrincipalName $Admin_UPN -RoleName $AzureADRole -DurationInHours 4 -Justification $SNOW_Ticket -Reason $Reason 
+            Add-PIMRoleAssignment -UserPrincipalName $Admin_UPN -RoleName $AzureADRole -DurationInHours 4 -Justification $SNOW_Ticket -ErrorAction Stop
             Write-Host -f Green "Successully assigned $AzureADRole to $Admin_UPN active for 4 hours only. Reference ticket $SNOW_Ticket" -NoNewline
 
             #Condition for enabled MFA
@@ -395,7 +395,7 @@ If ($PIMRoleAssignment -ne $null) {
                         $MFA_State = $ThisUser.State
 
                         #Reset of MFA for a specific user
-                        Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                        #Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
                         Write-Host -f Green "Successully reset Azure MFA for $_"
                     }
                 }
@@ -410,14 +410,10 @@ If ($PIMRoleAssignment -ne $null) {
             If ($Users_UPN -ne $null) {
                 $Users_UPN | foreach {
                     #Reset of MFA for a specific user
-                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                    #Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
                     Write-Host -f Green "Successully reset Azure MFA for $_"
                 }
             }
-        }
-        Else {
-        Write-Host -f Red "$AzureConnection_UPN doesn't have active or eligible Authentication Administrator role."
-        pause
         }
     }
 }
