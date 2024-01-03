@@ -359,7 +359,7 @@ Function Add-PIMRoleAssignment {
 
 
 #Query current Azure AD role assignment
-$PIMRoleAssignment = Get-PIMRoleAssignment -UserPrincipalName eh0251.t1@pg.com #$AzureConnection_UPN
+$PIMRoleAssignment = Get-PIMRoleAssignment -UserPrincipalName $AzureConnection_UPN
 If ($PIMRoleAssignment -ne $null) {
     $PIMRoleAssignment | % {
 	    $UserDisplayName = $_ |% {$_.UserDisplayName}
