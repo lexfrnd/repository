@@ -373,8 +373,8 @@ If ($PIMRoleAssignment -ne $null) {
             Write-Host ""
             Write-Host -f Cyan "Input SNOW INC Ticket number: " -NoNewline
             $SNOW_Ticket = Read-Host
-            Write-Host -f Cyan "Input Reason (max 500 caharacters): " -NoNewline
-            $Reason = Read-Host
+            #Write-Host -f Cyan "Input Reason (max 500 caharacters): " -NoNewline
+            #$Reason = Read-Host
 
             #Activate Auth Admin role
             Add-PIMRoleAssignment -UserPrincipalName $Admin_UPN -RoleName $AzureADRole -DurationInHours 4 -Justification $SNOW_Ticket -ErrorAction Stop
