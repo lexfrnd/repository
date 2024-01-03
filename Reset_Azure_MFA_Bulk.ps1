@@ -395,7 +395,7 @@ If ($PIMRoleAssignment -ne $null) {
                         $MFA_State = $ThisUser.State
 
                         #Reset of MFA for a specific user
-                        #Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                        Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
                         Write-Host -f Green "Successully reset Azure MFA for $_"
                     }
                 }
@@ -410,7 +410,7 @@ If ($PIMRoleAssignment -ne $null) {
             If ($Users_UPN -ne $null) {
                 $Users_UPN | foreach {
                     #Reset of MFA for a specific user
-                    #Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
                     Write-Host -f Green "Successully reset Azure MFA for $_"
                 }
             }
