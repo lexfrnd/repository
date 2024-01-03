@@ -1,21 +1,26 @@
-﻿<#
-.SYNOPSIS
-    This will reset the Azure MFA for a specific user
- 
-.NOTES
-    Name: Azure MFA Reset
-    Author: Krisarlex Foronda
-    Version: 1.0
-    Date Created: 11/20/2023
- 
-.PRE-REQUISITE
-    Uninstall-Module-Name AzureAD
-    Install-Module-Name AzureADPreview
-    Import-ModuleAzureAD
-    Connect-AzureAD -TenantId <your_tenantID> Get-Module *AzureAD*
-    MSOnline Module - Install-Module MSOnline
+#//SYNOPSIS
+#  This will reset the Azure MFA for a specific user
 
-#>
+#//NOTES
+#   Name: Azure MFA Reset
+#   Author: Krisarlex Foronda
+#   Version: 1.0
+#   Date Created: 11/20/2023
+ 
+#// PRE-REQUISITE
+#    Uninstall-Module-Name AzureAD
+#    Install-Module-Name AzureADPreview
+#    Import-ModuleAzureAD
+#    Connect-AzureAD -TenantId #<your_tenantID> Get-Module *AzureAD*
+#    MSOnline Module - Install-Module MSOnline
+#
+
+#Check Execution policy
+$ExecutionPolicy = Get-ExecutionPolicy -ErrorAction SilentlyContinue
+if ($ExecutionPolicy -ne "RemoteSigned") {
+    Write-Host -ForegroundColor Yellow "Setting execution policy from restricted to process"
+    Set-ExecutionPolicy RemoteSigned -Scope Process
+}
 
 #Uninstall AzureAD Module. This will conflict with AzureADPreview
 $AzureAD_Status = Get-Module -Name AzureAD
@@ -24,13 +29,19 @@ Else { Uninstall-Module -Name AzureAD -Whatif }
 
 #Query and install AzureADPreview module
 $AzureADPreview_Status = Get-Module -Name AzureADPreview
-If($AzureADPreview_Status.Name -eq $null) { Install-Module -Name AzureADPreview -WhatIf }
+If($AzureADPreview_Status.Name -eq $null) { Install-Module -Name AzureADPreview }
 Else { Write-Host -f Green "AzureADPreview module is already installed" }
 
 #Query and install MSOnline module
 $MSOnline_Status = Get-Module -Name MSOnline
-If($MSOnline_Status.Name -eq $null) { Install-Module -Name MSOnline -WhatIf }
+If($MSOnline_Status.Name -eq $null) { Install-Module -Name MSOnline }
 Else { Write-Host -f Green "MSOnline module is already installed" }
+
+#Check msolservice connection
+if (-not (Get-MsolDomain -ErrorAction SilentlyContinue)) {
+    Write-Host -ForegroundColor Yellow "You're not connected to MSolService. Please sing in to your T1 - privilege account."
+    Connect-MsolService
+}
 
 Function Get-PIMRoleAssignment {
 <#
@@ -340,21 +351,17 @@ Function Add-PIMRoleAssignment {
 }
 
 #AzureAD connection verification
-If($AzureConnection.Account -eq $null)
-{
-    
+If($AzureConnection.Account -eq $null){  
     $AzureConnection = Connect-AzureAD #-TenantId $TenantId 
     $AzureConnection_UPN = ($AzureConnection.Account).Id
     Write-Host -f Green "You're logged in using $AzureConnection_UPN"
-
 }
 
 Else { Write-Host -f Green "You're logged in using $AzureConnection_UPN" }
 
 #Query current Azure AD role assignment
 $PIMRoleAssignment = Get-PIMRoleAssignment -UserPrincipalName $AzureConnection_UPN
-If ($PIMRoleAssignment -ne $null)
-{
+If ($PIMRoleAssignment -ne $null) {
     $PIMRoleAssignment | % {
 	    $UserDisplayName = $_ |% {$_.UserDisplayName}
         $Admin_UPN = $_ |% {$_.UserPrincipalName}
@@ -363,9 +370,7 @@ If ($PIMRoleAssignment -ne $null)
         $MemberType = $_ |% {$_.MemberType}
         
         #Condition if Auth Admin is assigned as eligible (L2 Access)
-        If ($AzureADRole -eq 'Authentication Administrator' -and $PIMAssignment -eq 'Eligible')
-        {
-
+        If ($AzureADRole -eq 'Authentication Administrator' -and $PIMAssignment -eq 'Eligible') {
             Write-Host ""
             Write-Host -f Cyan "Input SNOW INC Ticket number: " -NoNewline
             $SNOW_Ticket = Read-Host
@@ -376,96 +381,48 @@ If ($PIMRoleAssignment -ne $null)
             Add-PIMRoleAssignment -UserPrincipalName $Admin_UPN -RoleName $AzureADRole -DurationInHours 4 -Justification $SNOW_Ticket -Reason $Reason 
             Write-Host -f Green "Successully assigned $AzureADRole to $Admin_UPN active for 4 hours only. Reference ticket $SNOW_Ticket" -NoNewline
 
-            #Connect to MSOnline
-            Connect-MsolService
-
             #Condition for enabled MFA
-            If ($MFA_State -eq 'Enabled')
-            {
-                
+            If ($MFA_State -eq 'Enabled') {
                 #Remove white spaces in the txt file
                 (Get-Content -Path "C:\temp\Users_UPN.txt" | foreach {$_ -replace '\s+', ''}) | Set-Content -Path "C:\temp\Users_UPN.txt"
                 $Users_UPN = Get-Content C:\temp\Users_UPN.txt | Where { $_ -ne "" }
-                If ($Users_UPN -ne $null)
-                {
-                    
+                If ($Users_UPN -ne $null) {
                     $Users_UPN | foreach {
+                        #Query current MFA state of a user
+                        #Get-MGUserAuthenticationMethod -UserID $User_UPN
+                        #(Get-MgUserAuthenticationMethod -UserId %upn%).AdditionalProperties.values
 
-                    #Query current MFA state of a user
-                    #Get-MGUserAuthenticationMethod -UserID $User_UPN
-                    #(Get-MgUserAuthenticationMethod -UserId %upn%).AdditionalProperties.values
+                        $ThisUser = Get-msoluser -UserPrincipalName $_ | Select-Object -ExpandProperty StrongAuthenticationRequirement
+                        $MFA_State = $ThisUser.State
 
-                    $ThisUser = Get-msoluser -UserPrincipalName $_ | Select-Object -ExpandProperty StrongAuthenticationRequirement
-                    $MFA_State = $ThisUser.State
-
-                    #Reset of MFA for a specific user
-                    #Set-MsolUser -UserPrincipalName $_ -StrongAuthenticationMethods @() -whatif
-                    #Reset-MsolStrongAuthenticationMethodByUpn -UserPrincipalName $_ -Whatif
-                    Write-Host -f Green "Successully reset Azure MFA for $_" -NoNewline
-
+                        #Reset of MFA for a specific user
+                        Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                        Write-Host -f Green "Successully reset Azure MFA for $_"
                     }
-
                 }
-
             }
-
         }
 
         #Condition if Auth Admin or Global Admin role is assigned as active (L3 Access)
-        Elseif ((($AzureADRole -eq 'Authentication Administrator') -or ($AzureADRole -eq 'Global Administrator')) -and $PIMAssignment -eq 'Active')
-        {
-
-            #Connect to MSOnline
-            Connect-MsolService
-
-            #Condition for enabled MFA
-            If ($MFA_State -eq 'Enabled')
-            {
-                
-                #Remove white spaces in the txt file
-                (Get-Content -Path "C:\temp\Users_UPN.txt" | foreach {$_ -replace '\s+', ''}) | Set-Content -Path "C:\temp\Users_UPN.txt"
-                $Users_UPN = Get-Content C:\temp\Users_UPN.txt | Where { $_ -ne "" }
-                If ($Users_UPN -ne $null)
-                {
-                    
-                    $Users_UPN | foreach {
-
-                    #Query current MFA state of a user
-                    #Get-MGUserAuthenticationMethod -UserID $User_UPN
-                    #(Get-MgUserAuthenticationMethod -UserId %upn%).AdditionalProperties.values
-
-                    $ThisUser = Get-msoluser -UserPrincipalName $_ | Select-Object -ExpandProperty StrongAuthenticationRequirement
-                    $MFA_State = $ThisUser.State
-
+        Elseif ((($AzureADRole -eq 'Authentication Administrator') -or ($AzureADRole -eq 'Global Administrator')) -and $PIMAssignment -eq 'Active') {
+            #Remove white spaces in the txt file
+            (Get-Content -Path "C:\temp\Users_UPN.txt" | foreach {$_ -replace '\s+', ''}) | Set-Content -Path "C:\temp\Users_UPN.txt"
+            $Users_UPN = Get-Content C:\temp\Users_UPN.txt | Where { $_ -ne "" }
+            If ($Users_UPN -ne $null) {
+                $Users_UPN | foreach {
                     #Reset of MFA for a specific user
-                    #Set-MsolUser -UserPrincipalName $_ -StrongAuthenticationMethods @() -whatif
-                    #Reset-MsolStrongAuthenticationMethodByUpn -UserPrincipalName $_ -Whatif
-                    Write-Host -f Green "Successully reset Azure MFA for $_" -NoNewline
-
-                    }
-
+                    Set-MsolUser -UserPrincipalName $UPN -StrongAuthenticationMethods @() -ErrorAction Continue
+                    Write-Host -f Green "Successully reset Azure MFA for $_"
                 }
-
             }
-
         }
-
-        Else
-        {
-
+        Else {
         Write-Host -f Red "$AzureConnection_UPN doesn't have active or eligible Authentication Administrator role."
         pause
-
         }
-
     }
-
 }
-
-Else
-{
-
-Write-Host -f Red "$AzureConnection_UPN doesn't have active or eligible role."
-pause
-
+Else {
+    Write-Host -f Red "$AzureConnection_UPN doesn't have active or eligible role."
+    pause
 }
