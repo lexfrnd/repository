@@ -377,7 +377,7 @@ If ($PIMRoleAssignment -ne $null) {
             #$Reason = Read-Host
 
             #Activate Auth Admin role
-            Add-PIMRoleAssignment -UserPrincipalName $Admin_UPN -RoleName $AzureADRole -DurationInHours 4 -Justification $SNOW_Ticket -ErrorAction Stop
+            Add-PIMRoleAssignment -UserPrincipalName $AzureConnection_UPN -RoleName $AzureADRole -DurationInHours 4 -TicketNumber $SNOW_Ticket -ErrorAction Stop
             Write-Host -f Green "Successully assigned $AzureADRole to $Admin_UPN active for 4 hours only. Reference ticket $SNOW_Ticket" -NoNewline
 
             #Condition for enabled MFA
