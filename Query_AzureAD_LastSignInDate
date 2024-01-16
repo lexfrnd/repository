@@ -1,0 +1,50 @@
+#// For data extraction of user from azure ad
+
+Set-ExecutionPolicy RemoteSigned -Scope Process
+Import-Module Microsoft.Graph.Authentication
+Connect-MgGraph -Scopes "AuditLog.Read.All","User.Read.All"
+Connect-AzureAD
+
+$csv = $null
+$Result = ""
+$output = ""
+$filter = ""
+$i = $null
+$data = @()
+$filecount = 1
+
+#PGB comment - location where is the masterfile, must be on a text file
+
+$csv = Get-Content "C:\Temp\masterdata_test.txt"
+$percentage = $csv.count
+$count = 0
+ 
+ForEach($row in $csv) {           
+    $temp = $row + "@pg.com"
+    $count++
+
+    Write-Progress -activity "Processing this script . . ." -status "Processed: $count of $($percentage)" -percentComplete (($count / $percentage)  * 100)
+
+    $AccountEnabled = @()
+    $ObjectId = @()
+    $AADAccount = Get-AzureADUser -ObjectId $temp | Select AccountEnabled, ObjectId
+
+    if($AADAccount.AccountEnabled -eq $null){
+
+        $lastsignin = $null
+        $AccountEnabled = "FALSE"
+    }
+
+    else { 
+        $AccountEnabled = "TRUE"
+        #$lastsignin = Get-AzureADAuditSignInLogs -Filter "startsWith(userPrincipalName,'$temp')" -Top 1 | Select-Object -ExpandProperty CreatedDateTime
+        $lastsignin = Get-MgUser -UserId $AADAccount.ObjectId -Select SignInActivity | Select -Expand SignInActivity
+        $Date = $lastsignin.LastSignInDateTime
+    }
+
+    $data += New-Object -TypeName psobject -Property @{UPN="$row"; AccountEnabled=$AccountEnabled; LastSignin = "$Date" <#"$lastsignin"#>}      
+}
+$data | Select-Object "UPN", "AccountEnabled", "LastSignin"
+#PGB comment - location where is the path of the extractedData - Do Not Remove $filecount.csv
+$filecount++
+$data | Export-Csv -Path "C:\Temp\ExtractedData.csv"
