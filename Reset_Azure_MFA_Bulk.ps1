@@ -336,7 +336,7 @@ Function Add-PIMRoleAssignment {
             try {
                 $AzureADUser = Get-AzureADUser -ObjectId $User -ErrorAction Stop | select-object UserPrincipalName, ObjectId, DisplayName
                 Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
-                    -SubjectId $AzureADUser.ObjectId -AssignmentState Active <#Eligible#> -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop | Out-Null
+                    -SubjectId $AzureADUser.ObjectId -AssignmentState Active <#Eligible#> -Type UserAdd <#AdminAdd#> -Reason $TicketNumber -ErrorAction Stop | Out-Null
  
                 [PSCustomObject]@{
 					UserDisplayName   = $AzureUser.DisplayName #Added by Lex
