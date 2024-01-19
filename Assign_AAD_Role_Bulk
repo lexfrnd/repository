@@ -19,14 +19,14 @@ Else { Write-Host -f Green "AzureADPreview module is already installed" }
 
 #AzureAD connection verification
 If (-not ($AzureConnection.Account)) {  
-    $AzureConnection = Connect-AzureAD -ErrorAction stop
-    $AzureConnection_UPN = ($AzureConnection.Account).Id
-    Write-Host -f Green "You're connected to AzureAD using $AzureConnection_UPN"
+	$AzureConnection = Connect-AzureAD -ErrorAction stop
+	$AzureConnection_UPN = ($AzureConnection.Account).Id
+	Write-Host -f Green "You're connected to AzureAD using $AzureConnection_UPN"
 }
 
 $SessionInfo = Get-AzureADCurrentSessionInfo -ErrorAction Stop
 if (-not ($PSBoundParameters.ContainsKey('TenantId'))) {
-    $TenantId = $SessionInfo.TenantId
+	$TenantId = $SessionInfo.TenantId
 }
 
 $AdminRoles = Get-AzureADMSPrivilegedRoleDefinition -ProviderId aadRoles -ResourceId $TenantId -ErrorAction Stop | select id, DisplayName
@@ -40,37 +40,37 @@ $Schedule.StartDateTime = (Get-Date)
 $Schedule.EndDateTime = $Null
  
 $Data = Import-Csv C:\Temp\Admins.csv
-$Data | % { <#
-	$User = $_ |% {$_.UserPrincipalName}
-    $RoleName = $_ |% {$_.RoleName}
-    $AssignmentState = $_ |% {$_.AssignmentState}
-    $TicketNumber = $_ |% {$_.TicketNumber}
-    #>
-    $AzureADUser = Get-AzureADUser -ObjectId $User -ErrorAction Stop | select-object UserPrincipalName, ObjectId, DisplayName
-    
-    If ($Data.AssignmentState -eq "Active") {
-    Write-Host "Processing $User - $RoleName - $AssignmentState"
-    <#Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
-        -SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop | Out-Null #>
-    }
-
-    Elseif ($Data.AssignmentState -eq "Eligible") {
-    Write-Host "$User - $RoleName - $AssignmentState" 
+$Data | % { #
+	$UserPrincipalName = $_ |% {$_.UserPrincipalName}
+	$RoleName = $_ |% {$_.RoleName}
+	$AssignmentState = $_ |% {$_.AssignmentState}
+	$TicketNumber = $_ |% {$_.TicketNumber}
     #
-    Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
-        -SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Verbose  -ErrorAction Stop | Out-Null
-    #
-    }
-    
-    #// Set-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId aadRoles -Id $AzureADUser.ObjectId -Reason "{'RequestorReason':'test','AdminReason':'gg'}" -Decision "AdminApproved"
-    
-    <#
-    [PSCustomObject]@{
+	$AzureADUser = Get-AzureADUser -ObjectId $UserPrincipalName -ErrorAction Stop | select-object UserPrincipalName, ObjectId, DisplayName
+	
+	If ($AssignmentState -eq "Active") {
+		Write-Host "Processing $UserPrincipalName - $RoleName - $AssignmentState"
+		<#Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop #>
+	}
+	
+	Elseif ($AssignmentState -eq "Eligible") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState" 
+		#
+		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Verbose -ErrorAction Stop
+		#
+	}
+	
+	#// Set-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId aadRoles -Id $AzureADUser.ObjectId -Reason "{'RequestorReason':'test','AdminReason':'gg'}" -Decision "AdminApproved"
+	
+	<#
+	[PSCustomObject]@{
 		UserDisplayName   = $AzureADUser.DisplayName #Added by Lex
-        UserPrincipalName = $AzureADUser.UserPrincipalName
-        RoleName          = $RoleName
-        #DurationInMonths = $DurationInMonths
+	UserPrincipalName = $AzureADUser.UserPrincipalName
+	RoleName          = $RoleName
+	#DurationInMonths = $DurationInMonths
 		#DurationInHours   = $DurationInHours
-        Justification     = $TicketNumber
-    }#>
+	Justification     = $TicketNumber
+	}#>
 }
