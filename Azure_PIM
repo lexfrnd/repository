@@ -52,7 +52,7 @@ $Data | % { #
 	if ($AssignmentRequest -eq "Remove") {
 		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
 		#
-		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
 		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type UserRemove -Verbose -ErrorAction Stop
 		#
 	}	
