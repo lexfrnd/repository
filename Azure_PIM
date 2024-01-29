@@ -1,0 +1,75 @@
+### Azure AD Role assignment by Lex
+
+#Check Execution policy
+$ExecutionPolicy = Get-ExecutionPolicy -ErrorAction SilentlyContinue
+if ($ExecutionPolicy -ne "RemoteSigned") {
+    Write-Host -ForegroundColor Yellow "Setting execution policy from restricted to process"
+    Set-ExecutionPolicy RemoteSigned -Scope Process
+}
+
+#Uninstall AzureAD Module. This will conflict with AzureADPreview
+$AzureAD_Status = Get-Module -Name AzureAD
+If($AzureAD_Status.Name -eq $null) { Write-Host -f Green "AzureAD module is not installed" }
+Else { Uninstall-Module -Name AzureAD }
+
+#Query and install AzureADPreview module
+$AzureADPreview_Status = Get-Module -Name AzureADPreview
+If($AzureADPreview_Status.Name -eq $null) { Install-Module -Name AzureADPreview }
+Else { Write-Host -f Green "AzureADPreview module is already installed" }
+
+#AzureAD connection verification
+If (-not ($AzureConnection.Account)) {  
+	$AzureConnection = Connect-AzureAD -ErrorAction stop
+	$AzureConnection_UPN = ($AzureConnection.Account).Id
+	Write-Host -f Green "You're connected to AzureAD using $AzureConnection_UPN"
+}
+
+$SessionInfo = Get-AzureADCurrentSessionInfo -ErrorAction Stop
+if (-not ($PSBoundParameters.ContainsKey('TenantId'))) {
+	$TenantId = $SessionInfo.TenantId
+}
+
+$AdminRoles = Get-AzureADMSPrivilegedRoleDefinition -ProviderId aadRoles -ResourceId $TenantId -ErrorAction Stop | select id, DisplayName
+$RoleId = @{}
+$AdminRoles | ForEach-Object {$RoleId.Add($_.DisplayName, $_.Id)}
+
+$Schedule = New-Object Microsoft.Open.MSGraph.Model.AzureADMSPrivilegedSchedule
+$Schedule.Type = "Once"
+$Schedule.StartDateTime = (Get-Date)
+#$Schedule.EndDateTime = (Get-Date).AddMonths($DurationInMonths)
+$Schedule.EndDateTime = $Null
+ 
+$Data = Import-Csv C:\Temp\Azure_PIM.csv
+$Data | % { #
+	$UserPrincipalName = $_ |% {$_.UserPrincipalName}
+	$RoleName = $_ |% {$_.RoleName}
+	$AssignmentState = $_ |% {$_.AssignmentState}
+    $AssignmentRequest = $_ |% {$_.AssignmentRequest}
+	$TicketNumber = $_ |% {$_.TicketNumber}
+    #
+	$AzureADUser = Get-AzureADUser -ObjectId $UserPrincipalName -ErrorAction Stop | select-object UserPrincipalName, ObjectId, DisplayName
+
+	if ($AssignmentRequest -eq "Remove") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
+		#
+		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type UserRemove -Verbose -ErrorAction Stop
+		#
+	}	
+
+	ElseIf ($AssignmentState -eq "Active" -and $AssignmentRequest -eq "Add") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
+		#
+        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop 
+        #>
+	}
+	
+	Elseif ($AssignmentState -eq "Eligible" -and $AssignmentRequest -eq "Add") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
+		#
+		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Verbose -ErrorAction Stop
+		#
+	}
+}
