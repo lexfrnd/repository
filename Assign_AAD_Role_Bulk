@@ -39,38 +39,37 @@ $Schedule.StartDateTime = (Get-Date)
 #$Schedule.EndDateTime = (Get-Date).AddMonths($DurationInMonths)
 $Schedule.EndDateTime = $Null
  
-$Data = Import-Csv C:\Temp\Admins.csv
+$Data = Import-Csv C:\Temp\Azure_PIM.csv
 $Data | % { #
 	$UserPrincipalName = $_ |% {$_.UserPrincipalName}
 	$RoleName = $_ |% {$_.RoleName}
 	$AssignmentState = $_ |% {$_.AssignmentState}
+    $AssignmentRequest = $_ |% {$_.AssignmentRequest}
 	$TicketNumber = $_ |% {$_.TicketNumber}
     #
 	$AzureADUser = Get-AzureADUser -ObjectId $UserPrincipalName -ErrorAction Stop | select-object UserPrincipalName, ObjectId, DisplayName
-	
-	If ($AssignmentState -eq "Active") {
-		Write-Host "Processing $UserPrincipalName - $RoleName - $AssignmentState"
-		<#Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
-		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop #>
+
+	if ($AssignmentRequest -eq "Remove") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
+		#
+		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type UserRemove -Verbose -ErrorAction Stop
+		#
+	}	
+
+	ElseIf ($AssignmentState -eq "Active" -and $AssignmentRequest -eq "Add") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
+		#
+        Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
+		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Reason $TicketNumber -ErrorAction Stop 
+        #>
 	}
 	
-	Elseif ($AssignmentState -eq "Eligible") {
-		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState" 
+	Elseif ($AssignmentState -eq "Eligible" -and $AssignmentRequest -eq "Add") {
+		Write-Host "$UserPrincipalName - $RoleName - $AssignmentState - $AssignmentRequest" 
 		#
 		Open-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId Aadroles -Schedule $Schedule -ResourceId $TenantId -RoleDefinitionId $RoleId[$RoleName] `
 		-SubjectId $AzureADUser.ObjectId -AssignmentState $AssignmentState -Type AdminAdd -Verbose -ErrorAction Stop
 		#
 	}
-	
-	#// Set-AzureADMSPrivilegedRoleAssignmentRequest -ProviderId aadRoles -Id $AzureADUser.ObjectId -Reason "{'RequestorReason':'test','AdminReason':'gg'}" -Decision "AdminApproved"
-	
-	<#
-	[PSCustomObject]@{
-		UserDisplayName   = $AzureADUser.DisplayName #Added by Lex
-	UserPrincipalName = $AzureADUser.UserPrincipalName
-	RoleName          = $RoleName
-	#DurationInMonths = $DurationInMonths
-		#DurationInHours   = $DurationInHours
-	Justification     = $TicketNumber
-	}#>
 }
